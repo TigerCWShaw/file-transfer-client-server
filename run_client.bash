@@ -1,0 +1,1 @@
+python ft_client_server.py -c tiger 127.0.0.1 1024 2000 2001

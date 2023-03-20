@@ -1,0 +1,1 @@
+python ft_client_server.py -s 1024
