@@ -1,7 +1,7 @@
 # %%
-import socket, sys
+import socket, sys, os
 import ipaddress
-from time import sleep
+from time import sleep, perf_counter
 import threading
 import socketserver
 import signal
@@ -10,6 +10,7 @@ import ast
 
 buffer_size = 1024
 exit_program = False
+# havePrint = False
 
 # %% utility functions
 def isIp(ip):
@@ -29,8 +30,18 @@ def isPort(port):
 def signal_handler(sig, frame):
     global exit_program
     print('[Exiting]')
-    # sleep(0.2)
+    exit_program = True
     sys.exit()
+
+def isDir(path):
+    if os.path.exists(path):
+        return True
+    return False
+
+def isFile(file, path):
+    if os.path.exists(os.path.join(path, file)):
+        return True
+    return False
 
 def printTable():
     pass
@@ -47,16 +58,42 @@ def client_tcp_conn(server_address, client_tcp_port):
 
 def handle_udp_send(udp_sock, server_address, name, client_tcp_port):
     global exit_program
+    set_dir = False
+    file_path = ''
     # send registration data first
     reg = '#reg' + name + ' ' + str(client_tcp_port)
     udp_sock.sendto(reg.encode(), server_address)
-    sleep(0.25)
+    sleep(0.2)
 
     while not exit_program:
-        sleep(0.25)
+        sleep(0.2)
         try:
             cmd = input('>>> ')
+            tmp_cmd =  cmd.split(' ')
+            if tmp_cmd[0] == 'setdir' and len(tmp_cmd) == 2:
+                if isDir(tmp_cmd[1]):
+                    cmd = '#set' + name
+                    set_dir = True
+                    file_path = tmp_cmd[1]
+                    print('>>> [Successfully set ' + tmp_cmd[1] + ' as the directory for searching offered files.]')
+                else:
+                    print('>>> [setdir failed: ' + tmp_cmd[1] + ' does not exist.]')
+                    continue
+            elif tmp_cmd[0] == 'offer' and len(tmp_cmd) >= 2:
+                if not set_dir:
+                    print('>>> [You need to setdir first.]')
+                else:
+                    file_valid = True
+                    for i in range(1, len(tmp_cmd)):
+                        if not isFile(tmp_cmd[i], file_path):
+                            print('>>> ' + tmp_cmd[i] + ' does not exist')
+                            file_valid = False
+                            break
+                    if not file_valid:
+                        continue
+                    cmd += ' ' + name
             udp_sock.sendto(cmd.encode(), server_address)
+
         except EOFError:
             # close program when ctrl c
             exit_program = True
@@ -73,13 +110,13 @@ def handle_udp_recv(udp_sock):
         sleep(0.1)
         try:
             msg, server_address = udp_sock.recvfrom(buffer_size)
+            udp_sock.sendto('ack'.encode(), server_address)
             msg_str = msg.decode('utf-8')
         except OSError:
             break
 
         if msg_str[:4] == '#log':
             # handle already logged in
-            print('test')
             print('>>>', '[' + msg_str[4:] + ']')
             exit_program = True
             udp_sock.close()
@@ -101,6 +138,7 @@ def client(name, server_ip , server_port, client_udp_port, client_tcp_port):
     udp_recv_thread.start()
     udp_send_thread.start()
 
+
     udp_recv_thread.join()
     udp_send_thread.join()
 
@@ -117,10 +155,18 @@ def getSubTable(client_table):
                 sub_table[key][i] = copy.deepcopy(value[i])
     return sub_table
 
+def sendTable(client_table, udp_sock):
+    sub_table = getSubTable(client_table)
+    msg = '#tab' + str(sub_table)
+    # send new table to all online members
+    for key, value in client_table.items():
+        if value['status'] == True:
+            udp_sock.sendto(msg.encode(), (value['ip'], value['udp_port']))
+
 def handleRegistration(name, client_table, client_address, tcp_port):
     if name in client_table:
         if client_table[name]['status']:
-            return '#logYou are already logged in.'
+            return '#logError: You are already logged in.'
         else:
             client_table[name]['status'] = True
             return 'Welcome back ' + name
@@ -131,9 +177,77 @@ def handleRegistration(name, client_table, client_address, tcp_port):
         client_table[name]['tcp_port'] = tcp_port
         client_table[name]['files'] = set()
         client_table[name]['status'] = True
+        client_table[name]['set_dir'] = False
     return 'Welcome, You are registered.'
 
+def handle_best_effort(udp_sock, msg_table):
+    while True:
+        remove_list = []
+        # value:[msg, count, time]
+        for client_address, value in msg_table.items():
+            current_time = perf_counter()
+            if current_time - value[2] >= 0.5:
+                # print(current_time - value[2])
+                udp_sock.sendto(value[0].encode(), client_address)
+                # increase the total count and update time
+                value[2] = current_time
+                value[1] += 1
+                if value[1] >= 3:
+                    remove_list.append(client_address)
+            else:
+                # dict key is in insertion order
+                break
+        for client_address in remove_list:
+            msg_table.pop(client_address)
 
+def handle_client_request(udp_sock, client_table, msg_table):
+    while True:
+        msg=''
+        msg, client_address = udp_sock.recvfrom(buffer_size)
+        msg_str = msg.decode('utf-8')
+        msg_list = msg_str.split(' ')
+
+        if msg_str == 'ack':
+            if client_address in msg_table:
+                msg_table.pop(client_address)
+        elif msg_str[0:4] == '#set':
+            client_table[msg_str[4:]]['set_dir'] = True
+
+        elif msg_str[0:4] == '#reg':
+            # recieve name and tcp port from client
+            k = msg_str[4:].split(' ')
+            if len(k) == 2:
+                msg = handleRegistration(k[0], client_table, client_address, int(k[1]))
+                udp_sock.sendto(msg.encode(), client_address)
+                if msg != '#logYou are already logged in.':
+                    sub_table = getSubTable(client_table)
+                    msg = '#tab' + str(sub_table)
+                    udp_sock.sendto(msg.encode(), client_address)
+                    # store message in buffer for best effort
+                    msg_table[client_address] = [msg, 1, perf_counter()]
+            else:
+                msg = 'Invalid command'
+
+        elif msg_list[0] == 'offer' and len(msg_list) >= 3:
+            # ignore first and last (command, name)
+            name = msg_list[len(msg_list)-1]
+            set_len = len(client_table[name]['files'])
+            for i in range(1, len(msg_list)-1):
+                client_table[name]['files'].add(msg_list[i])
+            if len(client_table[name]['files']) > set_len:
+                msg = 'Offer Message Received By Server'
+                udp_sock.sendto(msg.encode(), client_address)
+                # broadcast changes to files
+                sendTable(client_table, udp_sock)
+            else:
+                msg = 'No new files added'
+                udp_sock.sendto(msg.encode(), client_address)
+
+        else:
+            msg = 'Invalid command'
+            udp_sock.sendto(msg.encode(), client_address)
+
+        print('Message from client at', client_address, ':', msg_str)
 
 def server(port):
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -141,29 +255,16 @@ def server(port):
     print('Server is listening at port', port)
     # table to store name, status, files, ip address, port
     client_table = {}
+    msg_table = {}
 
-    while True:
-        msg, client_address = udp_sock.recvfrom(buffer_size)
-        msg_str = msg.decode('utf-8')
+    best_effort_thread = threading.Thread(target=handle_best_effort, args=(udp_sock, msg_table))
+    client_request_thread = threading.Thread(target=handle_client_request, args=(udp_sock, client_table, msg_table))
 
-        if msg_str[0:4] == '#reg':
-            # recieve name and tcp port from client
-            k = msg_str[4:].split(' ')
-            if len(k) == 2:
-                msg = handleRegistration(k[0], client_table, client_address, int(k[1]))
-                udp_sock.sendto(msg.encode(), client_address)
+    best_effort_thread.start()
+    client_request_thread.start()
 
-                # create a sub dict with files, name, ip, tcp_port
-                sub_table = getSubTable(client_table)
-                msg = '#tab' + str(sub_table)
-                udp_sock.sendto(msg.encode(), client_address)
-            else:
-                msg = 'Invalid command'
-        else:
-            msg = 'Recieved command'
-            udp_sock.sendto(msg.encode(), client_address)
-
-        print('Message from client at', client_address, ':', msg_str)
+    best_effort_thread.join()
+    client_request_thread.join()
 
 # %% main
 def main():
