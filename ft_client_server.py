@@ -11,6 +11,7 @@ import ast
 buffer_size = 1024
 exit_program = False
 haveInput = False
+file_list = {}
 
 # %% utility functions
 def isIp(ip):
@@ -43,10 +44,28 @@ def isFile(file, path):
         return True
     return False
 
-def printTable(file_list):
-    pass
+def printTable():
+    global file_list
+    # print(file_list)
+    print_list = []
+    for name, value in file_list.items():
+        for file in value['files']:
+            print_list.append([file, name, value['ip'], value['tcp_port']])
+    if len(print_list) > 0:
+        print_list.sort()
+        msg = 'FILENAME\tOWNER\tIP ADDRESS\tTCP PORT\n'
+        for i, plist in enumerate(print_list):
+            for v in plist:
+                msg += str(v) + '\t'
+            if i < len(print_list) - 1:
+                msg += '\n'
+        print(msg)
+    else:
+        print('>>> [No files available for download at the moment.]')
 
 # %% Client side of the program
+
+
 def client_tcp_conn(server_address, client_tcp_port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_sock:
         tcp_sock.bind(('127.0.0.1', client_tcp_port))
@@ -78,7 +97,7 @@ def handle_udp_best_effort(udp_sock, msg_table):
         for address in remove_list:
             msg_table.pop(address)
 
-def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table, file_list):
+def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table):
     global exit_program, haveInput
     set_dir = False
     file_path = ''
@@ -99,7 +118,7 @@ def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table, 
                 continue
             tmp_cmd =  cmd.split(' ')
             if cmd == 'list':
-                printTable(file_list)
+                printTable()
             elif tmp_cmd[0] == 'setdir' and len(tmp_cmd) == 2:
                 if isDir(tmp_cmd[1]):
                     cmd = '#set' + name
@@ -135,8 +154,8 @@ def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table, 
         #     break
 
 
-def handle_udp_recv(udp_sock, msg_table, file_list):
-    global exit_program, haveInput
+def handle_udp_recv(udp_sock, msg_table):
+    global exit_program, haveInput, file_list
     haveInput = True
     while not exit_program:
         sleep(0.1)
@@ -167,13 +186,12 @@ def handle_udp_recv(udp_sock, msg_table, file_list):
 
 def client(name, server_ip , server_port, client_udp_port, client_tcp_port):
     msg_table = {}
-    file_list = {}
     server_address = (server_ip, server_port)
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_sock.bind(('127.0.0.1', client_udp_port))
 
-    udp_send_thread = threading.Thread(target=handle_udp_send, args=(udp_sock, server_address, name, client_tcp_port, msg_table, file_list))
-    udp_recv_thread = threading.Thread(target=handle_udp_recv, args=(udp_sock, msg_table, file_list))
+    udp_send_thread = threading.Thread(target=handle_udp_send, args=(udp_sock, server_address, name, client_tcp_port, msg_table))
+    udp_recv_thread = threading.Thread(target=handle_udp_recv, args=(udp_sock, msg_table))
     udp_best_effort_thread = threading.Thread(target=handle_udp_best_effort, args=(udp_sock, msg_table))
 
     udp_best_effort_thread.start()
@@ -267,7 +285,7 @@ def handle_client_request(udp_sock, client_table, msg_table):
                     # store message in buffer for best effort
                     msg_table[client_address] = [msg, 1, perf_counter()]
             else:
-                msg = 'Invalid command'
+                msg = 'Invalid Request'
 
         elif msg_list[0] == 'offer' and len(msg_list) >= 3:
             # ignore first and last (command, name)
@@ -285,7 +303,7 @@ def handle_client_request(udp_sock, client_table, msg_table):
                 udp_sock.sendto(msg.encode(), client_address)
 
         else:
-            msg = 'Invalid command'
+            msg = 'Invalid Request'
             udp_sock.sendto(msg.encode(), client_address)
 
         print('Message from client at', client_address, ':', msg_str)

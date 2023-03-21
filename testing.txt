@@ -9,4 +9,5 @@ setdir dir
 offer file.txt
 offer file.txt file1.txt
 offer file1.txt
-offer file1.txt file2.txt
+offer file2.txt
+offer file1.txt file3.txt
