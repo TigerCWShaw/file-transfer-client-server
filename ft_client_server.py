@@ -12,6 +12,7 @@ buffer_size = 1024
 exit_program = False
 haveInput = False
 file_list = {}
+file_path = ''
 
 # %% utility functions
 def isIp(ip):
@@ -64,12 +65,14 @@ def printTable():
         print('>>> [No files available for download at the moment.]')
 
 # %% Client side of the program
-def tcp_file_transfer(peer_name, peer_address, file_name, file_path):
+def tcp_file_transfer(peer_name, peer_address, file_name, name):
+    global file_path
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_sock:
         tcp_sock.connect(peer_address)
         print('< Connection with client ' + peer_name + ' established. >')
         # tell the peer which file
-        tcp_sock.sendall(file_name.encode())
+        msg = file_name + ' ' + name
+        tcp_sock.sendall(msg.encode())
 
 
         with open(os.path.join(file_path, file_name), 'w') as f:
@@ -79,18 +82,26 @@ def tcp_file_transfer(peer_name, peer_address, file_name, file_path):
                 if not data:
                     break
                 f.write(data)
-            print('< ' + file_name + 'downloaded successfully! >')
-        print('< Connection with client' + peer_name + 'closed. >')
+            print('< ' + file_name + ' downloaded successfully! >')
+        print('< Connection with client ' + peer_name + ' closed. >')
 
+class MyTCPHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        # recieve filename from client
+        global file_path
+        msg = self.request.recv(buffer_size).decode()
+        file_name, peer_name = msg.split(' ')
+        print('\n< Accepting connection request from ' + self.client_address[0] + ' >')
+        print('< Transferring ' + file_name + '... >')
+        with open(os.path.join(file_path, file_name), 'r') as f:
+            data = f.read()
+            self.request.sendall(data.encode())
+            print('< ' + file_name + ' transferred successfully! >')
+        print('< Connection with client ' + peer_name + ' closed. >\n>>> ', end='')
 
-def handle_tcp_recv(server_address, client_tcp_port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_sock:
-        tcp_sock.bind(('127.0.0.1', client_tcp_port))
-        tcp_sock.connect(server_address)
-
-        print('In tcp connection')
-        # msg = tcp_sock.recv(buffer_size)
-        # msg_str = msg.decode('utf-8')
+def handle_tcp_recv(client_tcp_port):
+    with socketserver.TCPServer((socket.gethostbyname(socket.gethostname()), client_tcp_port), MyTCPHandler) as server:
+        server.serve_forever()
 
 def handle_udp_best_effort(udp_sock, msg_table):
     while not exit_program:
@@ -117,7 +128,7 @@ def handle_udp_best_effort(udp_sock, msg_table):
 def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table):
     global exit_program, haveInput, file_list
     set_dir = False
-    file_path = ''
+    global file_path
     # send registration data first
     reg = '#reg' + name + ' ' + str(client_tcp_port)
     udp_sock.sendto(reg.encode(), server_address)
@@ -170,7 +181,7 @@ def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table):
                     continue
                 # establish tcp connection with file owner
                 peer_address = (file_list[tmp_cmd[2]]['ip'], file_list[tmp_cmd[2]]['tcp_port'])
-                tcp_file_transfer(tmp_cmd[2], peer_address, tmp_cmd[1], file_path)
+                tcp_file_transfer(tmp_cmd[2], peer_address, tmp_cmd[1], name)
             else:
                 udp_sock.sendto(cmd.encode(), server_address)
 
@@ -216,8 +227,12 @@ def handle_udp_recv(udp_sock, msg_table):
 def client(name, server_ip , server_port, client_udp_port, client_tcp_port):
     msg_table = {}
     server_address = (server_ip, server_port)
+
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_sock.bind((socket.gethostbyname(socket.gethostname()), client_udp_port))
+
+    tcp_recv_thread = threading.Thread(target=handle_tcp_recv, args=(client_tcp_port,))
+    tcp_recv_thread.start()
 
     udp_send_thread = threading.Thread(target=handle_udp_send, args=(udp_sock, server_address, name, client_tcp_port, msg_table))
     udp_recv_thread = threading.Thread(target=handle_udp_recv, args=(udp_sock, msg_table))
@@ -226,6 +241,7 @@ def client(name, server_ip , server_port, client_udp_port, client_tcp_port):
     udp_best_effort_thread.start()
     udp_recv_thread.start()
     udp_send_thread.start()
+
 
     # udp_recv_thread.join()
     # udp_send_thread.join()

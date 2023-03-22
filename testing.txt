@@ -5,9 +5,13 @@ python3.10 ft_client_server.py -c C 127.0.0.1 1024 2005 2006
 
 setdir A
 setdir dir
+setdir dest
 
 offer file.txt
 offer file.txt file1.txt
 offer file1.txt
 offer file2.txt
 offer file1.txt file3.txt
+
+request foo.txt A
+request file1.txt A
