@@ -1,1 +1,0 @@
-python3.10 ft_client_server.py -s 1024
