@@ -64,9 +64,26 @@ def printTable():
         print('>>> [No files available for download at the moment.]')
 
 # %% Client side of the program
+def tcp_file_transfer(peer_name, peer_address, file_name, file_path):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_sock:
+        tcp_sock.connect(peer_address)
+        print('< Connection with client ' + peer_name + ' established. >')
+        # tell the peer which file
+        tcp_sock.sendall(file_name.encode())
 
 
-def client_tcp_conn(server_address, client_tcp_port):
+        with open(os.path.join(file_path, file_name), 'w') as f:
+            print('< Downloading ' + file_name + '... >')
+            while True:
+                data = tcp_sock.recv(buffer_size).decode()
+                if not data:
+                    break
+                f.write(data)
+            print('< ' + file_name + 'downloaded successfully! >')
+        print('< Connection with client' + peer_name + 'closed. >')
+
+
+def handle_tcp_recv(server_address, client_tcp_port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as tcp_sock:
         tcp_sock.bind(('127.0.0.1', client_tcp_port))
         tcp_sock.connect(server_address)
@@ -98,7 +115,7 @@ def handle_udp_best_effort(udp_sock, msg_table):
             msg_table.pop(address)
 
 def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table):
-    global exit_program, haveInput
+    global exit_program, haveInput, file_list
     set_dir = False
     file_path = ''
     # send registration data first
@@ -142,6 +159,18 @@ def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table):
                         cmd += ' ' + name
                         udp_sock.sendto(cmd.encode(), server_address)
                         msg_table[server_address] = [cmd, 1, perf_counter()]
+            elif tmp_cmd[0] == 'request' and len(tmp_cmd) == 3:
+                # input: request <file> <name>
+                # check if name exists
+                if tmp_cmd[2] not in file_list:
+                    print('< Invalid Request >')
+                    continue
+                if tmp_cmd[1] not in file_list[tmp_cmd[2]]['files']:
+                    print('< Invalid Request >')
+                    continue
+                # establish tcp connection with file owner
+                peer_address = (file_list[tmp_cmd[2]]['ip'], file_list[tmp_cmd[2]]['tcp_port'])
+                tcp_file_transfer(tmp_cmd[2], peer_address, tmp_cmd[1], file_path)
             else:
                 udp_sock.sendto(cmd.encode(), server_address)
 
@@ -188,7 +217,7 @@ def client(name, server_ip , server_port, client_udp_port, client_tcp_port):
     msg_table = {}
     server_address = (server_ip, server_port)
     udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_sock.bind(('127.0.0.1', client_udp_port))
+    udp_sock.bind((socket.gethostbyname(socket.gethostname()), client_udp_port))
 
     udp_send_thread = threading.Thread(target=handle_udp_send, args=(udp_sock, server_address, name, client_tcp_port, msg_table))
     udp_recv_thread = threading.Thread(target=handle_udp_recv, args=(udp_sock, msg_table))
@@ -301,7 +330,6 @@ def handle_client_request(udp_sock, client_table, msg_table):
             else:
                 msg = '#ackNo New Files Added'
                 udp_sock.sendto(msg.encode(), client_address)
-
         else:
             msg = 'Invalid Request'
             udp_sock.sendto(msg.encode(), client_address)
