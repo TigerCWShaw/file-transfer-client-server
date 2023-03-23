@@ -1,4 +1,0 @@
-Hello
-World
-from
-file3.txt

@@ -1,21 +1,47 @@
 python3.10 ChatApp.py -s 1024
-python3.10 ChatApp.py -c A 127.0.0.1 1024 2000 2001
+python3.10 ChatApp.py -c A 127.0.0.1 1024 2001 2002
 python3.10 ChatApp.py -c B 127.0.0.1 1024 2003 2004
 python3.10 ChatApp.py -c C 127.0.0.1 1024 2005 2006
+python3.10 ChatApp.py -c D 127.0.0.1 1024 2007 2008
+python3.10 ChatApp.py -c E 127.0.0.1 1024 2009 2010
 
+// test empty
+list
+
+// testing error
 setdir A
-setdir dir
-setdir dest
 
+setdir dir
+setdir dir2
+
+// testing error
 offer file.txt
 offer file.txt file1.txt
-offer file1.txt
-offer file2.txt
-offer file1.txt file3.txt
 
+// for dir
+offer file1.txt
+offer file2.txt c.txt
+offer file1.txt file3.txt
+offer a.txt b.txt file4.txt
+
+// for dir2
+offer file1_5.txt
+offer hello.txt cae.txt ab.txt file5.txt
+
+list
+
+// testing error
 request foo.txt A
+request file3.txt E
+
 request file1.txt A
 request file3.txt A
-request file1.txt B
+request a.txt B
+request cae.txt C
+request hello.txt D
 
 dereg A
+login A
+
+dereg D
+login D

@@ -1,0 +1,2 @@
+some random content in file a
+hi from file a
