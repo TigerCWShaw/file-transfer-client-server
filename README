@@ -40,10 +40,10 @@ Server:
         Since msg_table is shared between threads, when we recieved an ack 
         from the client/server, that thread will remove the the message from msg_table, 
         preventing best effort thread from sending dups.
-        To test the best effort function:
-            best effort send table: comment line 237.
-            best effort offer: comment line 383~393
-            best effort dereg: comment line 396~399
+        To test the best effort functions:
+            best effort send table: comment out line 237.
+            best effort offer: comment line out 383~393
+            best effort dereg: comment line out 396~399
 
 
     2.1 Registration:
