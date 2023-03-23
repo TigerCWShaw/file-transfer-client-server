@@ -32,6 +32,10 @@ Server:
     Explanation:
         Best Effort implementation: to handle how either the client or the server do best effort udp connections, I used a dictionary(msg_table) that has shared memory between the other client or server threads.
         When the client/server sends a message that requires best effort, the message will be added to the msg_table along with the current time. The best effort thread will periodically check msg_table to see if 500ms has pass and resend the message if required while setting the time to the current time. Since msg_table is shared between threads, when we recieved an ack from the client/server, that thread will remove the the message from msg_table, preventing best effort thread from sending dups.
+        To test the best effort function:
+            best effort send table: comment line 237.
+            best effort offer: comment line 383~393
+            best effort dereg: comment line 396~399
 
 
     2.1 Registration:

@@ -127,9 +127,9 @@ def handle_udp_best_effort(udp_sock, msg_table, server_address):
                 if value[1] >= 3:
                     remove_list.append(key)
                     if key == '#offer':
-                        print('[No ACK from Server, please try again later.]\n>>> ')
+                        print('[No ACK from Server, please try again later.]\n>>> ', end='')
                     elif key == '#dereg':
-                        print('[Server not responding]\n>>> [Exiting]')
+                        print('[Server not responding]\n>>> [Exiting]\n>>> ', end='')
                         logout = True
                     continue
                 udp_sock.sendto(value[0].encode(), server_address)
@@ -259,9 +259,9 @@ def handle_udp_recv(udp_sock, msg_table):
                 print('>>> [Client table updated.]')
             else:
                 print('[Client table updated.]\n>>> ', end='')
-        elif msg_str[:5] == '#exit':
-            print('>>>', '[' + msg_str[5:] + ']')
-            logout = True
+        # elif msg_str[:5] == '#exit':
+        #     print('>>>', '[' + msg_str[5:] + ']')
+        #     logout = True
         else:
             print('>>>', '[' + msg_str + ']')
 
