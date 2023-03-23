@@ -1,0 +1,168 @@
+// for the outputs I will only be using client A and B but the program will
+// run for at least 5 clients
+python3 ChatApp.py -s 1024
+Output: Server is listening at port 1024
+python3 ChatApp.py -c A 127.0.0.1 1024 2001 2002
+python3 ChatApp.py -c B 127.0.0.1 1024 2003 2004
+python3 ChatApp.py -c C 127.0.0.1 1024 2005 2006
+python3 ChatApp.py -c D 127.0.0.1 1024 2007 2008
+python3 ChatApp.py -c E 127.0.0.1 1024 2009 2010
+
+Output:
+>>> [Welcome, You are registered.]
+>>> [Client table updated.]
+
+// test empty
+list
+Output: >>> [No files available for download at the moment.]
+
+
+// testing error
+setdir A
+Output: >>> [setdir failed: A does not exist.]
+
+// testing offer before setdir
+offer file.txt
+Output: >>> [You need to setdir first.]
+
+A: setdir dir
+Output: >>> [Successfully set dir as the directory for searching offered files.]
+B: setdir dir2
+Output: [Successfully set dir2 as the directory for searching offered files.]
+
+// testing offer invalid file (file.txt)
+offer file.txt
+Output: >>> file.txt does not exist
+offer file.txt file1.txt
+Output: >>> file.txt does not exist
+
+
+// for dir (client A)
+offer file2.txt c.txt
+offer file1.txt file3.txt
+offer a.txt b.txt file4.txt
+Output:
+>>> [Offer Message Received By Server]
+>>> [Client table updated.]
+
+// adding dup files
+offer file1.txt
+Output: >>> [No New Files Added]
+
+list
+Output:
+    FILENAME OWNER IP ADDRESS  TCP PORT
+0      a.txt     A  127.0.1.1      2002
+1      b.txt     A  127.0.1.1      2002
+2      c.txt     A  127.0.1.1      2002
+3  file1.txt     A  127.0.1.1      2002
+4  file2.txt     A  127.0.1.1      2002
+5  file3.txt     A  127.0.1.1      2002
+6  file4.txt     A  127.0.1.1      2002
+
+// for dir2 (client B)
+offer file1_5.txt
+offer hello.txt cae.txt ab.txt file5.txt
+
+
+list
+Output:
+       FILENAME OWNER IP ADDRESS  TCP PORT
+0         a.txt     A  127.0.1.1      2002
+1        ab.txt     B  127.0.1.1      2004
+2         b.txt     A  127.0.1.1      2002
+3         c.txt     A  127.0.1.1      2002
+4       cae.txt     B  127.0.1.1      2004
+5     file1.txt     A  127.0.1.1      2002
+6   file1_5.txt     B  127.0.1.1      2004
+7     file2.txt     A  127.0.1.1      2002
+8     file3.txt     A  127.0.1.1      2002
+9     file4.txt     A  127.0.1.1      2002
+10    file5.txt     B  127.0.1.1      2004
+11    hello.txt     B  127.0.1.1      2004
+
+// testing request invalid file or user
+B: request foo.txt A
+Output: < Invalid Request >
+A: request file3.txt B
+Output: < Invalid Request >
+
+B: request file1.txt A
+Output:
+B:
+< Connection with client A established. >
+< Downloading file1.txt... >
+< file1.txt downloaded successfully! >
+< Connection with client A closed. >
+A:
+< Accepting connection request from 127.0.0.1 >
+< Transferring file1.txt... >
+< file1.txt transferred successfully! >
+< Connection with client B closed. >
+
+A: request hello.txt B
+Output:
+A:
+< Connection with client B established. >
+< Downloading hello.txt... >
+< hello.txt downloaded successfully! >
+< Connection with client B closed. >
+B:
+< Accepting connection request from 127.0.0.1 >
+< Transferring hello.txt... >
+< hello.txt transferred successfully! >
+< Connection with client A closed. >
+
+// only login with the program that called dereg
+A: dereg A
+Output: >>> [You are Offline. Bye.]
+
+B: list
+Output: (including previous messages)
+>>> [Client table updated.]
+>>> list
+      FILENAME OWNER IP ADDRESS  TCP PORT
+0       ab.txt     B  127.0.1.1      2004
+1      cae.txt     B  127.0.1.1      2004
+2  file1_5.txt     B  127.0.1.1      2004
+3    file5.txt     B  127.0.1.1      2004
+4    hello.txt     B  127.0.1.1      2004
+
+# test dereg A file transfer
+B: request a.txt A
+Output: < Invalid Request >
+
+login A
+Output:
+>>> [Welcome back A.]
+>>> [Client table updated.]
+
+list
+Output:
+       FILENAME OWNER IP ADDRESS  TCP PORT
+0         a.txt     A  127.0.1.1      2002
+1        ab.txt     B  127.0.1.1      2004
+2         b.txt     A  127.0.1.1      2002
+3         c.txt     A  127.0.1.1      2002
+4       cae.txt     B  127.0.1.1      2004
+5     file1.txt     A  127.0.1.1      2002
+6   file1_5.txt     B  127.0.1.1      2004
+7     file2.txt     A  127.0.1.1      2002
+8     file3.txt     A  127.0.1.1      2002
+9     file4.txt     A  127.0.1.1      2002
+10    file5.txt     B  127.0.1.1      2004
+11    hello.txt     B  127.0.1.1      2004
+
+// file transfer after login
+B: request a.txt A
+Output:
+B:
+< Connection with client A established. >
+< Downloading a.txt... >
+< a.txt downloaded successfully! >
+< Connection with client A closed. >
+A:
+< Accepting connection request from 127.0.0.1 >
+< Transferring a.txt... >
+< a.txt transferred successfully! >
+< Connection with client B closed. >

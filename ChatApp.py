@@ -351,7 +351,7 @@ def handle_client_request(udp_sock, client_table, msg_table):
         msg, client_address = udp_sock.recvfrom(buffer_size)
         msg_str = msg.decode('utf-8')
         msg_list = msg_str.split(' ')
-        print('Message from client at', client_address, ':', msg_str)
+        # print('Message from client at', client_address, ':', msg_str)
 
         if msg_str == 'ack':
             if client_address in msg_table:

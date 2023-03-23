@@ -1,5 +1,5 @@
-###Name: Chun-Wei Shaw
-###Uni: cs4213
+Name: Chun-Wei Shaw
+Uni: cs4213
 
 The program was tested on Python 3.10.9
 additional packages: pandas
@@ -16,17 +16,18 @@ Commands to run the program:
 
 
 Structure of Program:
+I used multi-threading to seperate each funtionality
 Client:
     I used 4 threads to handle each of the functionalites below:
-    1. Handling user input and sending it to the server using udp
-    2. Recieving and handling udp responses from server
-    3. Handling sent messages and resending them if an ack is not recieved
-    4. Recieving tcp request and sending the requested file
+        1. Handling user input and sending it to the server using udp
+        2. Recieving and handling udp responses from server
+        3. Handling sent messages and resending them if an ack is not recieved
+        4. Recieving tcp request and sending the requested file
 
 Server:
     I used 2 threads to handle the functionalites below:
-    1. Handling client request
-    2. Handling sent messages and resending them if an ack is not recieved
+        1. Handling client request
+        2. Handling sent messages and resending them if an ack is not recieved
 
     Explanation:
         Best Effort implementation: to handle how either the client or the server do best effort udp connections, I used a dictionary(msg_table) that has shared memory between the other client or server threads.
@@ -43,8 +44,8 @@ Server:
         Upon running the list command, the client will run printable, which will read the data from file_list to a Dataframe then print out the result.
 
     2.4 File Transfer:
-        Suppose client1 request client2 for a file
-        Upon running the request command, the client1 will call tcp_file_transfer() which will establish tcp connection, request the data from client2, create the file with the requested filename than write the data recieved from the client2. Client2 will be listening using handle_tcp_rcv() and will read the file requested(combining file name with the directory set) and send it to client1.
+        Assume client1 request client2 for a file. Upon running the request command, the client1 will call tcp_file_transfer() which will establish tcp connection, request the data from client2, create the file with the requested filename than write the data recieved from the client2. Client2 will be listening using handle_tcp_rcv() and will read the file requested(combining file name with the directory set) and send it to client1.
+        The files are dowloaded to the directory where ChatApp.py is executed
 
     2.5 De-register
         I have a global variable logout for the client that will be set to true when dereg is called, after recieving the server's ack, logout will be set to true and the other threads will be in a loop doing nothing. The server will set the status of client to be offline in the client table and call sendTable() if the client has offered at least one file.
