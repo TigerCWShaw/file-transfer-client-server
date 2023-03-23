@@ -1,0 +1,54 @@
+Name: Chun-Wei Shaw
+Uni: cs4213
+
+The program was tested on Python 3.10.9
+additional packages: pandas
+
+Commands to run the program:
+    server on port 1024:
+        python3 ChatApp.py -s 1024
+    client:
+        python3 ChatApp.py -c A 127.0.0.1 1024 2001 2002
+        python3 ChatApp.py -c B 127.0.0.1 1024 2003 2004
+        python3 ChatApp.py -c C 127.0.0.1 1024 2005 2006
+        python3 ChatApp.py -c D 127.0.0.1 1024 2007 2008
+        python3 ChatApp.py -c E 127.0.0.1 1024 2009 2010
+
+
+Structure of Program:
+Client:
+    I used 4 threads to handle each of the functionalites below:
+    1. Handling user input and sending it to the server using udp
+    2. Recieving and handling udp responses from server
+    3. Handling sent messages and resending them if an ack is not recieved
+    4. Recieving tcp request and sending the requested file
+
+Server:
+    I used 2 threads to handle the functionalites below:
+    1. Handling client request
+    2. Handling sent messages and resending them if an ack is not recieved
+
+Explanation:
+    Best Effort implementation: to handle how either the client or the server do best effort udp connections, I used a dictionary(msg_table) that has shared memory between the other client or server threads.
+    When the client/server sends a message that requires best effort, the message will be added to the msg_table along with the current time. The best effort thread will periodically check msg_table to see if 500ms has pass and resend the message if required while setting the time to the current time. Since msg_table is shared between threads, when we recieved an ack from the client/server, that thread will remove the the message from msg_table, preventing best effort thread from sending dups.
+
+
+    2.1 Registration:
+        Send a messge to the udp server. The udp server will check if the user is registered, if the user is not registered, the server will add the clients info in a dictionary(client_table). The server will also send info on the current list of files to the newly registered client, the client will store this information in a dictionary(file_list)
+    2.2 File Offering:
+        Use os.path.exist do determine if the directories that wants to be set and the files that wants to be offered are valid. After recieving the files, the server will update client_table then calls sendTable(), which reads the data in client_table and broadcast the updated table to all the online clients.
+    2.3 File Listing:
+        Upon running the list command, the client will run printable, which will read the data from file_list to a Dataframe then print out the result.
+    2.4 File Transfer:
+        Suppose client1 request client2 for a file
+        Upon running the request command, the client1 will call tcp_file_transfer() which will establish tcp connection, request the data from client2, create the file with the requested filename than write the data recieved from the client2. Client2 will be listening using handle_tcp_rcv() and will read the file requested(combining file name with the directory set) and send it to client1.
+    2.5 De-register
+        I have a global variable logout for the client that will be set to true when dereg is called, after recieving the server's ack, logout will be set to true and the other threads will be in a loop doing nothing. The server will set the status of client to be offline in the client table and call sendTable() if the client has offered at least one file.
+    Bonus function Login
+        After a client A has successfully dereg, the client can log back in by running login A, when a client logs back in, the server would call sendTable() if the client offered any files updating the list for all the clients
+
+Note: Only client A should log back in the program where client A dereg because the setdir will be wrong if client B logs inside that program. I could fix this if we store the setdir directory in the server instead of storing it locally on the client, but 2.4 specifies that file transfer is only between clients and won't involve the server, there will be a contradiction implementing it this way.
+    A case that I haven't consider is what happens if the setdir is run after a file has been offered and acknowledge
+
+
+

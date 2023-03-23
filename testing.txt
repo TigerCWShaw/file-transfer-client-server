@@ -1,9 +1,9 @@
-python3.10 ChatApp.py -s 1024
-python3.10 ChatApp.py -c A 127.0.0.1 1024 2001 2002
-python3.10 ChatApp.py -c B 127.0.0.1 1024 2003 2004
-python3.10 ChatApp.py -c C 127.0.0.1 1024 2005 2006
-python3.10 ChatApp.py -c D 127.0.0.1 1024 2007 2008
-python3.10 ChatApp.py -c E 127.0.0.1 1024 2009 2010
+python3 ChatApp.py -s 1024
+python3 ChatApp.py -c A 127.0.0.1 1024 2001 2002
+python3 ChatApp.py -c B 127.0.0.1 1024 2003 2004
+python3 ChatApp.py -c C 127.0.0.1 1024 2005 2006
+python3 ChatApp.py -c D 127.0.0.1 1024 2007 2008
+python3 ChatApp.py -c E 127.0.0.1 1024 2009 2010
 
 // test empty
 list
@@ -11,10 +11,13 @@ list
 // testing error
 setdir A
 
+// testing offer before setdir
+offer file.txt
+
 setdir dir
 setdir dir2
 
-// testing error
+// testing offer invalid file
 offer file.txt
 offer file.txt file1.txt
 
@@ -30,7 +33,7 @@ offer hello.txt cae.txt ab.txt file5.txt
 
 list
 
-// testing error
+// testing request invalid file or user
 request foo.txt A
 request file3.txt E
 
@@ -40,8 +43,9 @@ request a.txt B
 request cae.txt C
 request hello.txt D
 
+// only login with the program that called dereg
 dereg A
 login A
 
-dereg D
-login D
+dereg B
+login B

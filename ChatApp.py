@@ -7,6 +7,7 @@ import socketserver
 import signal
 import copy
 import ast
+import pandas as pd
 
 buffer_size = 1024
 exit_program = False
@@ -55,13 +56,19 @@ def printTable():
             print_list.append([file, name, value['ip'], value['tcp_port']])
     if len(print_list) > 0:
         print_list.sort()
-        msg = 'FILENAME\tOWNER\tIP ADDRESS\tTCP PORT\n'
-        for i, plist in enumerate(print_list):
-            for v in plist:
-                msg += str(v) + '\t'
-            if i < len(print_list) - 1:
-                msg += '\n'
-        print(msg)
+        # msg = 'FILENAME\tOWNER\tIP ADDRESS\tTCP PORT\n'
+        # for i, plist in enumerate(print_list):
+        #     for v in plist:
+        #         msg += str(v) + '\t'
+        #     if i < len(print_list) - 1:
+        #         msg += '\n'
+        # print(msg)
+        df = pd.DataFrame(print_list, columns=['FILENAME', 'OWNER', 'IP ADDRESS', 'TCP PORT'])
+        with pd.option_context('display.max_rows', None,
+                       'display.max_columns', None,
+                       'display.precision', 3,
+                       ):
+            print(df)
     else:
         print('>>> [No files available for download at the moment.]')
 
@@ -154,9 +161,12 @@ def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table):
             tmp_cmd =  cmd.split(' ')
             if tmp_cmd[0] == 'login' and len(tmp_cmd) == 2:
                 # login
-                logout = False
-                reg = '#reg' + tmp_cmd[1] + ' ' + str(client_tcp_port)
-                udp_sock.sendto(reg.encode(), server_address)
+                if logout == False:
+                    print('You Need to dereg first')
+                else:
+                    logout = False
+                    reg = '#reg' + tmp_cmd[1] + ' ' + str(client_tcp_port)
+                    udp_sock.sendto(reg.encode(), server_address)
             elif not cmd or logout:
                 continue
             elif cmd == 'list':
@@ -187,7 +197,7 @@ def handle_udp_send(udp_sock, server_address, name, client_tcp_port, msg_table):
             elif tmp_cmd[0] == 'request' and len(tmp_cmd) == 3:
                 # input: request <file> <name>
                 # check if name exists
-                if tmp_cmd[2] not in file_list and tmp_cmd[2] != name:
+                if tmp_cmd[2] not in file_list or tmp_cmd[2] == name:
                     print('< Invalid Request >')
                     continue
                 if tmp_cmd[1] not in file_list[tmp_cmd[2]]['files']:
@@ -383,7 +393,8 @@ def handle_client_request(udp_sock, client_table, msg_table):
                 udp_sock.sendto(msg.encode(), client_address)
         elif msg_list[0] == 'dereg' and len(msg_list) == 2:
             client_table[msg_list[1]]['status'] = False
-            sendTable(client_table, udp_sock)
+            if len(client_table[msg_list[1]]['files']) > 0:
+                sendTable(client_table, udp_sock)
             msg = '#exitYou are Offline. Bye.'
             udp_sock.sendto(msg.encode(), client_address)
         else:
