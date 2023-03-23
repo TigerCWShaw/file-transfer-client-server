@@ -1,3 +1,4 @@
+// The program is tested on Python 3.10.9
 // for the outputs I will only be using client A and B but the program will
 // run for at least 5 clients
 python3 ChatApp.py -s 1024
